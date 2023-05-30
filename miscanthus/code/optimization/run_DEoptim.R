@@ -1,0 +1,64 @@
+library(BioCroMis)
+library(DEoptim)
+
+# file containing dense observation (fitting loess function) that will be used in the objective function
+fn.observed = "il_observation.csv"
+#Yufeng: the last DOY the obs has reduced STEM.
+#since the model does not have STEM senescenece, it has a low weight on the last DOY
+observed <- read.csv(fn.observed)
+
+#climate file for running the model
+fn.climate <- "site_2_2002_2018.csv"
+# growing season weather from IL 
+weather_all <- read.csv(fn.climate)
+partial_gro_list = list()
+
+# Modules required for miscanthus
+load("../../data/parameters/miscanthus_giganteus_ss_logistic_modules.rdata")
+load("../../data/parameters/miscanthus_giganteus_deriv_logistic_modules.rdata")
+load("../../data/parameters/miscanthus_giganteus_initial_state.rdata")
+load("../../data/parameters/miscanthus_giganteus_logistic_parameters.rdata")
+
+parameters_to_optimize <- c("kRhizome_emr","kLeaf_emr","kStem_emr","alphaStem","betaStem","alphaLeaf","betaLeaf","alphaRoot", "betaRoot")
+lower_bound_parameters <- c(-0.01,0.05,0.05)
+upper_bound_parameters <- c(-0.00001,0.8,0.8)
+lower_bound_parameters <- c(lower_bound_parameters,c(0 ,-40,0 ,-40,0 ,-40))
+upper_bound_parameters <- c(upper_bound_parameters,c(40,0  ,40,0  ,40,0))
+
+miscanthus_giganteus_logistic_parameters$alpha1 = 0.045 #use a larger value based on Charles' paper
+
+years = 2006:2008 #obs years from doi: 10.1111/j.1757-1707.2011.01153.x
+for (i in 1:length(years)){
+  year_i   = years[i] 
+  growing_season_weather = weather_all[weather_all$year == year_i, ]
+  
+  growing_season <- growing_season_weather[with(growing_season_weather,doy >=106 & doy <=350),] 
+  
+  partial_gro_function <- partial_gro_solver(initial_state =  miscanthus_giganteus_initial_state,
+                                             parameters = miscanthus_giganteus_logistic_parameters,
+                                             varying_parameters = growing_season,
+                                             steady_state_module_names = miscanthus_giganteus_ss_logistic_modules,
+                                             derivative_module_names = miscanthus_giganteus_deriv_logistic_modules,
+                                             arg_names = parameters_to_optimize)
+  partial_gro_list[[i]] = partial_gro_function
+}
+
+source("il_objfunlogistic.R")
+cost_func <- function(x){
+ 	il_objfunlogistic(x,partial_gro_list,observed)
+}
+# maximum number of iterations
+max.iter <- 500
+
+set.seed(1234)
+# Call DEoptim function to run optimization
+parVars <- c('il_objfunlogistic','partial_gro_list','observed')
+
+cl <- makeCluster(8)
+clusterExport(cl, parVars,envir=environment())
+optim_result<-DEoptim(fn=cost_func, lower=lower_bound_parameters, upper = upper_bound_parameters, 
+                      control=list(VTR=10,itermax=max.iter,parallelType=1,packages=c('BioCroMis'),parVar=parVars,cl=cl))
+
+opt_result <- data.frame(optim_result$par,MSE=optim_result$value)
+
+saveRDS(opt_result,'opt_result_DEoptim_r1.rds')

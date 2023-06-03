@@ -34,6 +34,7 @@ parameters_list_switchgrass$soil_type_indicator = 4
 #                             "kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate")
 parameters_to_optimize <- c("kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate","TTemr")
 x=c(-0.001814,    0.010002,   0.437179,    0.000734,  229.688196)
+x=c(-0.001420,    0.010000,    0.457963,    0.001000,  340.778342)
 
 parameters_list_switchgrass[parameters_to_optimize] = x
 
@@ -103,41 +104,30 @@ for (i in 1:length(years)){
   
 }
 
-result2006$date <- as.Date(result2006$doy,origin = "2006-01-01")
-result2007$date <- as.Date(result2007$doy,origin = "2007-01-01")
-result2008$date <- as.Date(result2008$doy,origin = "2008-01-01")
-
-#repeat 2006's last day
-result2006 = rbind(result2006,tail(result2006,24))
-result2006$date[(nrow(result2006)-23):nrow(result2006)]=result2006$date[nrow(result2006)]+1
-
 result <- rbind(result2006, result2007, result2008)
 result$aboveground <-  result$stem + result$leaf #+ result$leaflitter
-predicted <- result[,c("date","aboveground","rhizome","root")]
-predicted <- reshape2::melt(predicted,id.vars = c("date"),measure.vars = c("aboveground","rhizome","root"))
+predicted <- result[,c("doy","aboveground","rhizome","root")]
+predicted <- reshape2::melt(predicted,id.vars = c("doy"),measure.vars = c("aboveground","rhizome","root"))
 
 #Only one year observed
 library(ggplot2)
 library(lubridate)
 
-#mean of results
-meanresult <- do.call(rbind, list(result2006, result2007,result2008))
-meanresult$daymonth <- substr(as.character(meanresult$date),start = 6, stop = 10)
-
-meanresult <- aggregate(meanresult,list(meanresult$daymonth),FUN=mean,na.rm=TRUE)
-# meanresult = meanresult[2:(nrow(meanresult)-1),]
-
-meanresult$aboveground <- meanresult$stem + meanresult$leaf #+ meanresult$leaflitter
-meanresult$date = as.Date(paste0("2008-",meanresult$Group.1))
-
 observed2 <- observed[month(observed$date)<12,]
 observed2$doy = as.numeric(format(observed2$date,"%j"))
-meanresult = meanresult[meanresult$date>=observed2$date[1] & meanresult$date <= tail(observed2$date,1),]
+observed2$value[observed2$variable=='root'][1]=0 #make the first root 0
 
-predicted <- meanresult[,c("date","doy","aboveground","rhizome","root")]
-predicted <- reshape2::melt(predicted,id.vars = c("doy"),measure.vars = c("aboveground","rhizome","root"))
-switchgrassplot <- ggplot(data=predicted) + geom_line(aes(x = doy, y = value,color = variable))
-switchgrassplot <- switchgrassplot + geom_point(aes(x=doy,y=value, color=variable), data = observed2)
+#mean of results
+meanresult <- aggregate(predicted$value~predicted$doy+predicted$variable,data=predicted,FUN=mean,na.rm=TRUE)
+meanresult_sd <- aggregate(predicted$value~predicted$doy+predicted$variable,data=predicted,FUN=sd,na.rm=TRUE)
+meanresult = cbind(meanresult,meanresult_sd$`predicted$value`)
+colnames(meanresult) = c('doy','variable','value','sd')
+
+#ggplot
+switchgrassplot <- ggplot(data=meanresult) +
+             geom_line(aes(x = doy, y = value,color = variable))
+switchgrassplot <- switchgrassplot + 
+  geom_point(aes(x=doy,y=value, color=variable), data = observed2)
 switchgrassplot <- switchgrassplot + xlab("Day of Year") + ylab ("dry biomass (Mg/ha)")
 plot(switchgrassplot)
 

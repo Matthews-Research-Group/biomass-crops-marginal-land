@@ -60,39 +60,18 @@ if(run_cwrfsoilwater){
     initial_state_switchgrass[names(initial_state_switchgrass)!=c('soil_water_content')]
 }
 
-######multi year simulations####################
-climate2002 <- read.csv("../data/weather/UIUC_weatherinputs_to_BioCro_2002.csv")
-climate2002 <- get_growing_season_climate(climate2002, threshold_temperature = 0)
-climate2003 <- read.csv("../data/weather/UIUC_weatherinputs_to_BioCro_2003.csv")
-climate2003 <- get_growing_season_climate(climate2003, threshold_temperature = 0)
-climate2004 <- read.csv("../data/weather/UIUC_weatherinputs_to_BioCro_2004.csv")
-climate2004 <- get_growing_season_climate(climate2004, threshold_temperature = 0)
-climate2005 <- read.csv("../data/weather/UIUC_weatherinputs_to_BioCro_2005.csv")
-climate2005 <- get_growing_season_climate(climate2005, threshold_temperature = 0)
-climate2006 <- read.csv("../data/weather/UIUC_weatherinputs_to_BioCro_2006.csv")
-climate2006 <- get_growing_season_climate(climate2006, threshold_temperature = 0)
-climate2007 <- read.csv("../data/weather/UIUC_weatherinputs_to_BioCro_2007.csv")
-climate2007 <- get_growing_season_climate(climate2007, threshold_temperature = 0)
-climate2008 <- read.csv("../data/weather/UIUC_weatherinputs_to_BioCro_2008.csv")
-climate2008 <- get_growing_season_climate(climate2008, threshold_temperature = 0)
-climate <- list(climate2002=climate2002,
-                climate2003=climate2003,
-                climate2004=climate2004,
-                climate2005=climate2005,
-                climate2006=climate2006,
-                climate2007=climate2007,
-                climate2008=climate2008)
+weather_urbana = read.csv('../data/weather/NASA_data/BioCroInputs/site_1_lowerTransmittance.csv')
 
 # rhizome_loss = 0.1
 # root_loss =  0.3
 # initial_state_switchgrass$Rhizome = 0.1
 
-years_all = 2002:2008
 years     = 2006:2008
 result_list=list()
 for (i in 1:length(years)){
-  ind = which(years_all==years[i])
-  growing_season=climate[[ind]]
+  ind = which(weather_urbana$year==years[i])
+  growing_season=weather_urbana[ind,]
+  growing_season = get_growing_season_climate(growing_season,threshold_temperature = 0)
   soil_data = read.csv(paste0("../data/weather/CWRF_soil_water/site_",1,"/cwrf_soilwater_",years[i],".csv"))
   if(run_cwrfsoilwater){
     growing_season$soil_water_content = soil_data$swc[soil_data$doy>=growing_season$doy[1] 

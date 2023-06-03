@@ -8,7 +8,7 @@ fn.observed = "il_observation.csv"
 observed <- read.csv(fn.observed)
 
 #climate file for running the model
-fn.climate <- "site_2_2002_2018.csv"
+fn.climate <- "site_2_2002_2018_LowerTransmittance.csv"
 # growing season weather from IL 
 weather_all <- read.csv(fn.climate)
 partial_gro_list = list()
@@ -22,9 +22,10 @@ load("../../data/parameters/miscanthus_giganteus_logistic_parameters.rdata")
 parameters_to_optimize <- c("kRhizome_emr","kLeaf_emr","kStem_emr","alphaStem","betaStem","alphaLeaf","betaLeaf","alphaRoot", "betaRoot")
 lower_bound_parameters <- c(-0.01,0.05,0.05)
 upper_bound_parameters <- c(-0.00001,0.8,0.8)
-lower_bound_parameters <- c(lower_bound_parameters,c(0 ,-40,0 ,-40,0 ,-40))
-upper_bound_parameters <- c(upper_bound_parameters,c(40,0  ,40,0  ,40,0))
+lower_bound_parameters <- c(lower_bound_parameters,c(0 ,-10,0 ,-40,0 ,-40))
+upper_bound_parameters <- c(upper_bound_parameters,c(10,0  ,40,0  ,40,0))
 
+miscanthus_giganteus_logistic_parameters$TTemr  = 400
 miscanthus_giganteus_logistic_parameters$alpha1 = 0.045 #use a larger value based on Charles' paper
 
 years = 2006:2008 #obs years from doi: 10.1111/j.1757-1707.2011.01153.x
@@ -61,4 +62,4 @@ optim_result<-DEoptim(fn=cost_func, lower=lower_bound_parameters, upper = upper_
 
 opt_result <- data.frame(optim_result$par,MSE=optim_result$value)
 
-saveRDS(opt_result,'opt_result_DEoptim_r1.rds')
+saveRDS(opt_result,'opt_result_DEoptim_r3.rds')

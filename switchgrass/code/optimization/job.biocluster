@@ -1,0 +1,11 @@
+#!/bin/bash
+
+#SBATCH --job-name=swiOPT
+#SBATCH --time=48:00:00
+#SBATCH -p normal 
+#SBATCH -N 1
+#SBATCH -n 8 
+#SBATCH --mail-type=END
+#SBATCH --mail-user=yufenghe@illinois.edu
+
+Rscript run_biocro_switchgrass_optimization_on_biocluster.R 

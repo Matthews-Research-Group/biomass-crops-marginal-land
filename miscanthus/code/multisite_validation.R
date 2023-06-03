@@ -48,6 +48,16 @@ load("../data//parameters/miscanthus_giganteus_logistic_parameters.rdata")
 load("../data//parameters/miscanthus_giganteus_ss_logistic_modules.rdata")
 load("../data//parameters/miscanthus_giganteus_deriv_logistic_modules.rdata")
 #################################COMMENT 1 ENDS #################################
+
+# miscanthus_giganteus_logistic_parameters$LeafWS <- 0.5
+# miscanthus_giganteus_logistic_parameters$StomataWS <- 0.5
+# ss_module_list = miscanthus_giganteus_ss_logistic_modules
+# ss_modules     = miscanthus_giganteus_ss_logistic_modules
+# ss_modules <- ss_modules[c(-which(ss_module_list=="stomata_water_stress_linear"),
+#                            -which(ss_module_list=="leaf_water_stress_exponential"))]
+# # ss_modules <- ss_modules[c(-which(ss_module_list=="leaf_water_stress_exponential"))]
+# miscanthus_giganteus_ss_logistic_modules = ss_modules
+
 # miscanthus_giganteus_logistic_parameters$kd = 0.1         #An Introduction to Environmental Biophysics
 miscanthus_giganteus_logistic_parameters$alpha1 = 0.045    #https://academic.oup.com/jxb/article/68/2/335/2932218#88082389
 miscanthus_giganteus_logistic_parameters$TTemr  = 400
@@ -108,7 +118,7 @@ rhizome_winter_loss = 0.34# 34% rhizome dies during winter
 multisite$predicted_stem_actual = NA
 
 #go through each site
-for (i in 15){#1:length(unique_IDs)){
+for (i in 1:length(unique_IDs)){
     unique_ID = unique_IDs[i]
     weather_all = read.csv(paste0(nasa_path,'site_',unique_ID,'_2002_2018_LowerTransmittance.csv'))
     
@@ -137,20 +147,21 @@ for (i in 15){#1:length(unique_IDs)){
       year_current = planted_year[1] + age -1
       weather <- weather_all[weather_all$year==year_current,]
       growing_season_weather <- get_growing_season_climate(weather, threshold_temperature = 0)
+      
       total_ttc = ttc_function(growing_season_weather$temp)
       ttc_scaling_factor = total_ttc / TTc_urbana$total_TTC[TTc_urbana$year==year_current]
-      miscanthus_giganteus_logistic_parameters$TTemr = miscanthus_giganteus_logistic_parameters0$TTemr * ttc_scaling_factor
-      miscanthus_giganteus_logistic_parameters$TTveg = miscanthus_giganteus_logistic_parameters0$TTveg * ttc_scaling_factor
-      miscanthus_giganteus_logistic_parameters$TTrep = miscanthus_giganteus_logistic_parameters0$TTrep * ttc_scaling_factor
-      ttc_scaling_factor_all = c(ttc_scaling_factor_all,ttc_scaling_factor)
+      # miscanthus_giganteus_logistic_parameters$TTemr = miscanthus_giganteus_logistic_parameters0$TTemr * ttc_scaling_factor
+      # miscanthus_giganteus_logistic_parameters$TTveg = miscanthus_giganteus_logistic_parameters0$TTveg * ttc_scaling_factor
+      # miscanthus_giganteus_logistic_parameters$TTrep = miscanthus_giganteus_logistic_parameters0$TTrep * ttc_scaling_factor
+      # ttc_scaling_factor_all = c(ttc_scaling_factor_all,ttc_scaling_factor)
       
       miscanthus_giganteus_initial_state$Rhizome = initialRhizome
       
-      miscanthus_giganteus_logistic_parameters$soil_depth  = multisite$bedrock[i]
-      miscanthus_giganteus_logistic_parameters$soil_depth2 = multisite$bedrock[i]/2
-      miscanthus_giganteus_logistic_parameters$soil_depth3 = multisite$bedrock[i]
+      miscanthus_giganteus_logistic_parameters$soil_depth  = site_i$bedrock[1]
+      miscanthus_giganteus_logistic_parameters$soil_depth2 = site_i$bedrock[1]/2
+      miscanthus_giganteus_logistic_parameters$soil_depth3 = site_i$bedrock[1]
       
-      miscanthus_giganteus_logistic_parameters$soil_type_indicator = multisite$biocro_soiltype[i]
+      miscanthus_giganteus_logistic_parameters$soil_type_indicator = site_i$biocro_soiltype[1]
   
       result <- Gro_solver(initial_state =  miscanthus_giganteus_initial_state,
                            parameters = miscanthus_giganteus_logistic_parameters,
@@ -160,32 +171,39 @@ for (i in 15){#1:length(unique_IDs)){
       
       initialRhizome = result$Rhizome[dim(result)[1]]*(1-rhizome_winter_loss)
       print(paste("age=", age, "ttc_scaling_factor=",ttc_scaling_factor,"initialRhizome=",initialRhizome))
-
+      print(paste("mean temp=", mean(growing_season_weather$temp)))
+      print(paste("mean solar=", mean(growing_season_weather$solar)))
       #calculate winter loss of stem biomass
       #this is only valid when the loop age is matching an actual measured age
       if(age %in% stand_age){
-        # biomass_site_i[age] = result$Stem[dim(result)[1]]
-        if(is.na(site_i$measure_month_n[count_index])){ #if no measure month, assume the March 1st (DOY=60)
-          site_i$predicted_stem_actual[count_index] = result$Stem[dim(result)[1]] - 0.07*(60+365-tail(growing_season_weather$doy,1))
-        }else{
-          if(site_i$measure_month_n[count_index]>6){ #if measure month is later than June, it suggests harvesting in Winter
-            measure_doy = site_i$measure_doy[count_index]
-            measure_doy = as.character(measure_doy)
-            measure_doy = as.numeric(format(as.Date(measure_doy,format = "%Y%m%d"),"%j"))
-            number_of_loss_days = measure_doy-tail(growing_season_weather$doy,1)+1
-            site_i$predicted_stem_actual[count_index] = result$Stem[dim(result)[1]] - 0.07*number_of_loss_days
-          }else{              #if measure month is less than June, it suggests harvesting in Spring
-            measure_doy = site_i$measure_doy[count_index]
-            measure_doy = as.character(measure_doy)
-            measure_doy = as.numeric(format(as.Date(measure_doy,format = "%Y%m%d"),"%j"))
-            number_of_loss_days = 365-tail(growing_season_weather$doy,1)+1+measure_doy
-            site_i$predicted_stem_actual[count_index] = result$Stem[dim(result)[1]] - 0.07*number_of_loss_days
+        #We currently do NOT use the 33% winter loss
+        # if(age<=3){ 
+        #   #for young stands, we apply a constant loss of 33%
+        #   biomass_site_i[age] = result$Stem[dim(result)[1]] * 0.67
+        # }else{
+        # #for older stands, we apply a loss of 0.07 t/ha per day
+          if(is.na(site_i$measure_month_n[count_index])){ #if no measure month, assume the March 1st (DOY=60)
+            site_i$predicted_stem_actual[count_index] = result$Stem[dim(result)[1]] - 0.07*(60+365-tail(growing_season_weather$doy,1))
+          }else{
+            if(site_i$measure_month_n[count_index]>6){ #if measure month is later than June, it suggests harvesting in Winter
+              measure_doy = site_i$measure_doy[count_index]
+              measure_doy = as.character(measure_doy)
+              measure_doy = as.numeric(format(as.Date(measure_doy,format = "%Y%m%d"),"%j"))
+              number_of_loss_days = measure_doy-tail(growing_season_weather$doy,1)+1
+              site_i$predicted_stem_actual[count_index] = result$Stem[dim(result)[1]] - 0.07*number_of_loss_days
+            }else{              #if measure month is less than June, it suggests harvesting in Spring
+              measure_doy = site_i$measure_doy[count_index]
+              measure_doy = as.character(measure_doy)
+              measure_doy = as.numeric(format(as.Date(measure_doy,format = "%Y%m%d"),"%j"))
+              number_of_loss_days = 365-tail(growing_season_weather$doy,1)+1+measure_doy
+              site_i$predicted_stem_actual[count_index] = result$Stem[dim(result)[1]] - 0.07*number_of_loss_days
+            }
+            if(number_of_loss_days<0) stop(c('age is',age))
+            site_i$predicted_stem_actual[count_index]  = site_i$predicted_stem_actual[count_index]
+            #* site_i$correction_factor[count_index]
           }
-          if(number_of_loss_days<0) stop(c('age is',age))
-          site_i$predicted_stem_actual[count_index]  = site_i$predicted_stem_actual[count_index]
-          #* site_i$correction_factor[count_index]
-        }
-        biomass_site_i[age] = site_i$predicted_stem_actual[count_index]
+          biomass_site_i[age] = site_i$predicted_stem_actual[count_index]
+        # }
         count_index = count_index+1
       }else{
         biomass_site_i[age] = NaN
@@ -199,11 +217,10 @@ for (i in 15){#1:length(unique_IDs)){
 
 # This correction is required because some yields are becoming negative due to excess loss calculated based on daily loss after reaching peak. We may need to find a better way
 # to calculate yield loss in winter using percentage instead of absolute yield loss per day.
-multisite_clean = multisite[multisite$predicted_stem_actual>5,]
-multisite_clean = multisite_clean[multisite_clean$biomass>5,] #observed
+multisite_clean = multisite
+# multisite_clean = multisite[multisite$predicted_stem_actual>5,]
+# multisite_clean = multisite_clean[multisite_clean$biomass>5,] #observed
 # multisite_clean = multisite_clean[(multisite_clean$LocationID!=16),]
-# library(epiR)
-# library(Metrics)
 uniqueID <- unique(multisite_clean$LocationID)
 uniqueID = uniqueID[!is.na(uniqueID)]
 
@@ -224,7 +241,7 @@ for (i in uniqueID){
 mean_rmse = rmse(observed,predicted) # 
 mean_ccc =  epi.ccc(observed,predicted)$rho.c$est  #
 
-cor(observed,predicted)
+cc = cor(observed,predicted)
 
 slope_parameters  = lm(predicted~observed+0) # 
 meandataset = data.frame(obs=observed, pred = predicted, SE=obs_se, location=uniqueID)
@@ -232,7 +249,7 @@ actual_stem_comparison <- ggplot(data =  meandataset,aes(x = obs ,  y = pred))+
   geom_point() +
   # stat_smooth(method="lm",formula=y~0+x, level = 0.9) +
   geom_errorbarh(aes(xmin=obs-SE, xmax=obs+SE), height=.2,position=position_dodge(.9)) +
-  xlab ("Observed Yield (Mg/ha)") + ylab("Predicted Yield(Mg/ha)") +
+  xlab ("Observed Yield (Mg/ha)") + ylab("Predicted Yield (Mg/ha)") +
   ylim(0,35) + xlim(0,35)  +
   geom_abline() 
 #  geom_text(x=28 , y = 22 , label = "1:1 line" ) + 

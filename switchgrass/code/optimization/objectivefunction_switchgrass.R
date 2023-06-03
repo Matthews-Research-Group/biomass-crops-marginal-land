@@ -73,8 +73,8 @@ objectivefunction_switchgrass <- function (parms,soybean_optsolver,observation_s
      E = 9999  
    }
 
-   diff = result$kLeaf - result$kStem
-   if(length(which(diff>0)) > 100) E=9999 
+#   diff = result$kLeaf - result$kStem
+#   if(length(which(diff>0)) > 100) E=9999 
  
    if(max(result2006$leaf) < 3) E=9999
 

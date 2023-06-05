@@ -1,6 +1,7 @@
 library(BioCroMis)
 #Yufeng He: Dec 12, 2022
 
+run_cwrfsoilwater=TRUE
 # parameters and weather inputs
 
 load("../data//parameters/miscanthus_giganteus_initial_state.rdata")
@@ -37,6 +38,11 @@ x=c(-0.000555,   0.211191,    0.671859,
 #     25.347711,  -34.880934,   10.792098,  -37.781153,    1.615596,   -3.709161)
 miscanthus_giganteus_logistic_parameters[parameters_to_optimize] = x
 
+if(run_cwrfsoilwater){
+  miscanthus_giganteus_deriv_logistic_modules = miscanthus_giganteus_deriv_logistic_modules[-3] #remove two_layer_soil_profile
+  miscanthus_giganteus_initial_state =
+    miscanthus_giganteus_initial_state[names(miscanthus_giganteus_initial_state)!=c('soil_water_content')]
+}
 
 miscanthus_giganteus_initial_state$Rhizome = 24.1
 
@@ -49,6 +55,17 @@ for (i in 1:length(years)){
   growing_season_weather = weather_all[weather_all$year == year_i,]
   growing_season_weather =  growing_season_weather[growing_season_weather$doy>=106 &
                                                     growing_season_weather$doy<=350,]
+  
+  #read in CWRF soil water for the initial soil water content and soil type
+  soil_data = 
+    read.csv(paste0("../data/weather_data_NASA_POWER//cwrf_soil_data//site_",2,"/cwrf_soilwater_",year_i,".csv"))
+  miscanthus_giganteus_logistic_parameters$soil_type_indicator = soil_data$soiltype[1]
+  
+  if(run_cwrfsoilwater){
+    growing_season_weather$soil_water_content = soil_data$swc[soil_data$doy>=growing_season_weather$doy[1] 
+                                                              & soil_data$doy<=tail(growing_season_weather$doy,1)]
+  }
+  
   
   result[[i]] <- Gro_solver(initial_state =  miscanthus_giganteus_initial_state,
                        parameters = miscanthus_giganteus_logistic_parameters,

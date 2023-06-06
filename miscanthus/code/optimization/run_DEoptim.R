@@ -1,6 +1,8 @@
 library(BioCroMis)
 library(DEoptim)
 
+run_cwrfsoilwater=TRUE
+
 # file containing dense observation (fitting loess function) that will be used in the objective function
 fn.observed = "il_observation.csv"
 #Yufeng: the last DOY the obs has reduced STEM.
@@ -28,12 +30,28 @@ upper_bound_parameters <- c(upper_bound_parameters,c(10,0  ,40,0  ,40,0))
 miscanthus_giganteus_logistic_parameters$TTemr  = 400
 miscanthus_giganteus_logistic_parameters$alpha1 = 0.045 #use a larger value based on Charles' paper
 
+if(run_cwrfsoilwater){
+  miscanthus_giganteus_deriv_logistic_modules = miscanthus_giganteus_deriv_logistic_modules[-3] #remove two_layer_soil_profile
+  miscanthus_giganteus_initial_state =
+    miscanthus_giganteus_initial_state[names(miscanthus_giganteus_initial_state)!=c('soil_water_content')]
+}
+
 years = 2006:2008 #obs years from doi: 10.1111/j.1757-1707.2011.01153.x
 for (i in 1:length(years)){
   year_i   = years[i] 
   growing_season_weather = weather_all[weather_all$year == year_i, ]
   
   growing_season <- growing_season_weather[with(growing_season_weather,doy >=106 & doy <=350),] 
+
+  
+  if(run_cwrfsoilwater){
+    #read in CWRF soil water for the initial soil water content and soil type
+    soil_data = 
+      read.csv(paste0("~/MFEW/miscanthus/site_",2,"/cwrf_soilwater_",year_i,".csv"))
+    miscanthus_giganteus_logistic_parameters$soil_type_indicator = soil_data$soiltype[1]
+    growing_season$soil_water_content = soil_data$swc[soil_data$doy>=growing_season$doy[1] 
+                                                              & soil_data$doy<=tail(growing_season$doy,1)]
+  }
   
   partial_gro_function <- partial_gro_solver(initial_state =  miscanthus_giganteus_initial_state,
                                              parameters = miscanthus_giganteus_logistic_parameters,
@@ -55,11 +73,11 @@ set.seed(1234)
 # Call DEoptim function to run optimization
 parVars <- c('il_objfunlogistic','partial_gro_list','observed')
 
-cl <- makeCluster(8)
+cl <- makeCluster(12)
 clusterExport(cl, parVars,envir=environment())
 optim_result<-DEoptim(fn=cost_func, lower=lower_bound_parameters, upper = upper_bound_parameters, 
                       control=list(VTR=10,itermax=max.iter,parallelType=1,packages=c('BioCroMis'),parVar=parVars,cl=cl))
 
 opt_result <- data.frame(optim_result$par,MSE=optim_result$value)
 
-saveRDS(opt_result,'opt_result_DEoptim_r3.rds')
+saveRDS(opt_result,'opt_result_DEoptim_cwrf_swc_r1.rds')

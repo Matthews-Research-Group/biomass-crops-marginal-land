@@ -25,12 +25,17 @@ source("objectivefunction_switchgrass.R")
 
 
 # Running optimization for the logistical phase
-#parameters_to_optimize <- c("alphaStem","betaStem","alphaLeaf","betaLeaf","alphaRoot","betaRoot",
-#                             "kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate")
-parameters_to_optimize <- c("kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate","TTemr")
+parameters_to_optimize <- c("alphaStem","betaStem","alphaLeaf","betaLeaf","alphaRoot","betaRoot",
+                             "kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate","TTemr")
+#parameters_to_optimize <- c("kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate","TTemr")
 parameters_list_switchgrass$TTc_leafsenescence_threshold = 5 
 parameters_list_switchgrass$soil_type_indicator = 4 #YH: this by default was 10!?  
-parameters_list_switchgrass$iSp = 1.7
+parameters_list_switchgrass$iSp    = 1.7
+
+#parameters_list_switchgrass$tbase      = 10
+#parameters_list_switchgrass$topt_upper = 31
+#parameters_list_switchgrass$tmax       = 40 
+
 years = 2006:2008
 if(run_cwrfsoilwater){
   parameters_list_switchgrass$wsFun=0
@@ -51,24 +56,29 @@ if(run_cwrfsoilwater){
   parameters_list_switchgrass$LeafWS=1
 }
 
-#lower_bound_parameters <- c(0 ,-40,0 ,-40,0 ,-40,    -0.01   ,0.01,0.01,0.0)
-#upper_bound_parameters <- c(40,0  ,40,0  ,40,0  ,    -0.00001,0.20,0.20,0.001)
-lower_bound_parameters <- c(-0.01   ,0.01,0.01,0.0  ,  100)
-upper_bound_parameters <- c(-0.00001,0.50,0.50,0.001,  400)
+lower_bound_parameters <- c(0 ,-20,0 ,-20,0 ,-20)
+upper_bound_parameters <- c(20,0  ,20,0  ,20,0  )
+#lower_bound_parameters <- c(-20 ,-20 ,-20 ,-20 ,-20 ,-20)
+#upper_bound_parameters <- c(20  ,20  ,20  ,20  ,20  ,20  )
+lower_bound_parameters <- c(lower_bound_parameters,c(-0.01   ,0.01,0.01,0.0  ,100))
+upper_bound_parameters <- c(upper_bound_parameters,c(-0.00001,0.80,0.80,0.002,500))
+#lower_bound_parameters <- c(-0.01   ,0.01,0.01,0.0,  100)
+#upper_bound_parameters <- c(-0.00001,0.80,0.80,0.002,800)
 
-wt <- list(aboveground = 1, root = 2, rhizome = 2)
+wt <- list(aboveground = 0.5, root = 1, rhizome = 1)
 
 solver=list(type='Gro_euler', output_step_size=1.0, adaptive_rel_error_tol=1e-4, adaptive_abs_error_tole=1e-4, adaptive_max_steps=200)
 
 set.seed(1234)
 
 optsolver <- list()
-initial_state_switchgrass$Rhizome = 14.0
+initial_state_switchgrass$Rhizome = 10.0
 initial_state_switchgrass$Root    = 0.1
 for (i in 1:length(years)){
    ind = which(weather_urbana$year==years[i])
    growing_season = weather_urbana[ind,]
-   growing_season = get_growing_season_climate(growing_season,threshold_temperature = 0)
+   #growing_season = get_growing_season_climate(growing_season,threshold_temperature = 0)
+   growing_season = growing_season[growing_season$doy>=105 & growing_season$doy<=290,]
    if(run_cwrfsoilwater){
      tmp = cwrf_soilwater[[i]]
      growing_season$soil_water_content = tmp$swc[tmp$doy>=growing_season$doy[1] & tmp$doy<=tail(growing_season$doy,1)] 
@@ -88,7 +98,7 @@ cost_func <- function(x){
 
 set.seed(1234)
 # maximum number of iterations
-max.iter <- 500
+max.iter <- 1000
 
 # Call DEoptim function to run optimization
 parVars <- c('objectivefunction_switchgrass','optsolver','observation_switchgrass_IL',
@@ -98,9 +108,9 @@ clusterExport(cl, parVars,envir=environment())
 
 optim_result<-DEoptim(fn=cost_func, lower=lower_bound_parameters, upper = upper_bound_parameters, 
                       control=list(VTR=30,itermax=max.iter,parallelType=1,packages=c('BioCroMis'),cluster=cl))
+#optim_result<-DEoptim(fn=cost_func, lower=lower_bound_parameters, upper = upper_bound_parameters, 
+#                      control=list(VTR=30,itermax=max.iter,parallelType=0,packages=c('BioCroMis')))
 
 opt_result = data.frame(optim_result$par,MSE=optim_result$value)
 
-saveRDS(opt_result,'opt_result_DEoptim_cwrfsoil_r1.rds')
-
-stopCluster(cl)
+saveRDS(opt_result,'opt_result_DEoptim_cwrfsoil_r9.rds')

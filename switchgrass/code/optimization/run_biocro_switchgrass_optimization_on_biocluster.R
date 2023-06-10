@@ -26,11 +26,12 @@ source("objectivefunction_switchgrass.R")
 
 # Running optimization for the logistical phase
 parameters_to_optimize <- c("alphaStem","betaStem","alphaLeaf","betaLeaf","alphaRoot","betaRoot",
-                             "kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate","TTemr")
+                             "kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate")
 #parameters_to_optimize <- c("kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate","TTemr")
 parameters_list_switchgrass$TTc_leafsenescence_threshold = 5 
 parameters_list_switchgrass$soil_type_indicator = 4 #YH: this by default was 10!?  
 parameters_list_switchgrass$iSp    = 1.7
+parameters_list_switchgrass$TTemr  = 300 
 
 #parameters_list_switchgrass$tbase      = 10
 #parameters_list_switchgrass$topt_upper = 31
@@ -60,8 +61,8 @@ lower_bound_parameters <- c(0 ,-20,0 ,-20,0 ,-20)
 upper_bound_parameters <- c(20,0  ,20,0  ,20,0  )
 #lower_bound_parameters <- c(-20 ,-20 ,-20 ,-20 ,-20 ,-20)
 #upper_bound_parameters <- c(20  ,20  ,20  ,20  ,20  ,20  )
-lower_bound_parameters <- c(lower_bound_parameters,c(-0.01   ,0.01,0.01,0.0  ,100))
-upper_bound_parameters <- c(upper_bound_parameters,c(-0.00001,0.80,0.80,0.002,500))
+lower_bound_parameters <- c(lower_bound_parameters,c(-0.01   ,0.01,0.01,0.0  ))
+upper_bound_parameters <- c(upper_bound_parameters,c(-0.00001,0.80,0.80,0.002))
 #lower_bound_parameters <- c(-0.01   ,0.01,0.01,0.0,  100)
 #upper_bound_parameters <- c(-0.00001,0.80,0.80,0.002,800)
 
@@ -113,4 +114,4 @@ optim_result<-DEoptim(fn=cost_func, lower=lower_bound_parameters, upper = upper_
 
 opt_result = data.frame(optim_result$par,MSE=optim_result$value)
 
-saveRDS(opt_result,'opt_result_DEoptim_cwrfsoil_r9.rds')
+saveRDS(opt_result,'opt_result_DEoptim_cwrfsoil_r10.rds')

@@ -75,8 +75,10 @@ objectivefunction_switchgrass <- function (parms,soybean_optsolver,observation_s
 
 #   diff = result$kLeaf - result$kStem
 #   if(length(which(diff>0)) > 100) E=9999 
- 
-   if(max(result2006$leaf) < 3) E=9999
+   #be careful! here is hard-coded indices, corresponding to kLeaf_emr and kStem_emr
+   if(parms[8]+parms[9]>1) E=9999  
+
+   if(max(result2006$leaf) < 2) E=9999
 
    return(E)
 }

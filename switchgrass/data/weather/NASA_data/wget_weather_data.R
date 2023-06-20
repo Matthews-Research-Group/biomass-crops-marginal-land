@@ -1,5 +1,4 @@
-setwd("/Users/yufeng/Desktop/UIUC/Research/MFEW/Deepak/MFEWS/multicrops/switchgrass/NASA_data")
-obs = read.csv('../switchgrass_observation_averaged_plantyear.csv')
+obs = read.csv('../../biomass_observation/switchgrass_observation_averaged_plantyear_maturestand_r1.csv')
 latlon=obs[,c("lat","lon")]
 latlon = latlon[!is.na(latlon$lat),]
 latlon_unique = unique(latlon)

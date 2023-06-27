@@ -29,16 +29,37 @@ if(TRUE){
 parameters_list_switchgrass$TTc_leafsenescence_threshold = 5
 parameters_list_switchgrass$iSp = 1.7
 parameters_list_switchgrass$soil_type_indicator = 4
+parameters_list_switchgrass$TTemr = 300
 
-# parameters_to_optimize <- c("alphaStem","betaStem","alphaLeaf","betaLeaf", "alphaRoot", "betaRoot",
-#                             "kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate")
-parameters_to_optimize <- c("kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate","TTemr")
-x=c(-0.001814,    0.010002,   0.437179,    0.000734,  229.688196)
-x=c(-0.001420,    0.010000,    0.457963,    0.001000,  340.778342)
+# parameters_list_switchgrass$tbase      = 10
+# parameters_list_switchgrass$topt_upper = 31
+# parameters_list_switchgrass$tmax       = 40
+
+parameters_to_optimize <- c("alphaStem","betaStem","alphaLeaf","betaLeaf", "alphaRoot", "betaRoot",
+                            "kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate","TTemr")
+
+# parameters_to_optimize <- c("kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate")
+# x=c(-0.001814,    0.010002,   0.437179,    0.000734,  229.688196)
+# x=c(-0.001420,    0.010000,    0.457963,    0.001000,  340.778342)
+# x=c(-0.001069,    0.014352,    0.500000,    0.001000)
+# # x=c(-0.331244,    2.367446,  -13.035984,   15.772289,   -2.895444,    2.200170,
+# #     -0.002154,    0.079547,    0.452053,    0.000638)
+# x=c(-1.281562,   10.699982,  -10.144695,   19.310777,    3.481228,  -17.720790,
+#     -0.002799,    0.446588,    0.447518,    0.002000,  101.333145)
+x=c(16.647549,  -10.105077,    5.297615,   -0.127140,   18.549425,  -18.399911,
+    -0.002501,    0.477766,    0.413641,    0.001222,  102.778072)
+x=c(8.320112,   -0.224664,   18.141234,  -19.899703,    0.018136,
+    -19.855960,   -0.008884,    0.101156,    0.239154,    0.000887, 105.543117)
+x=c(5.809053,   -2.428205,   10.897149,  -19.003032,    1.494914,   -9.901821,
+    -0.004324,    0.621079,    0.052520,    0.000793)
+x=c(10.019875,   -5.734288,    5.418285,   -0.490853,   14.444107,  -17.618838,
+    -0.001025,    0.143396,    0.615253,    0.000096,  253.538347)
+# parameters_to_optimize <- c("kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate","TTemr")
+# x=c( -0.001795,    0.714143,    0.152252,    0.000000,  748.425000)
 
 parameters_list_switchgrass[parameters_to_optimize] = x
 
-initial_state_switchgrass$Rhizome = 14  #mature-stand's Rhizome
+initial_state_switchgrass$Rhizome = 10  #mature-stand's Rhizome
 initial_state_switchgrass$Root    = 0.1
 # #remove water stress
 # initial_state_switchgrass = 
@@ -65,14 +86,14 @@ weather_urbana = read.csv('../data/weather/NASA_data/BioCroInputs/site_1_lowerTr
 
 # rhizome_loss = 0.1
 # root_loss =  0.3
-# initial_state_switchgrass$Rhizome = 0.1
 
 years     = 2006:2008
 result_list=list()
 for (i in 1:length(years)){
   ind = which(weather_urbana$year==years[i])
   growing_season=weather_urbana[ind,]
-  growing_season = get_growing_season_climate(growing_season,threshold_temperature = 0)
+  # growing_season = get_growing_season_climate(growing_season,threshold_temperature = 0)
+  growing_season = growing_season[growing_season$doy>=105 & growing_season$doy<=290,]
   soil_data = read.csv(paste0("../data/weather/CWRF_soil_water/site_",1,"/cwrf_soilwater_",years[i],".csv"))
   if(run_cwrfsoilwater){
     growing_season$soil_water_content = soil_data$swc[soil_data$doy>=growing_season$doy[1] 
@@ -104,9 +125,9 @@ for (i in 1:length(years)){
   
 }
 
-result <- rbind(result2006, result2007, result2008)
-result$aboveground <-  result$stem + result$leaf #+ result$leaflitter
-predicted <- result[,c("doy","aboveground","rhizome","root")]
+result_bind <- rbind(result2006, result2007, result2008)
+result_bind$aboveground <-  result_bind$stem + result_bind$leaf #+ result$leaflitter
+predicted <- result_bind[,c("doy","aboveground","rhizome","root")]
 predicted <- reshape2::melt(predicted,id.vars = c("doy"),measure.vars = c("aboveground","rhizome","root"))
 
 #Only one year observed
@@ -115,7 +136,7 @@ library(lubridate)
 
 observed2 <- observed[month(observed$date)<12,]
 observed2$doy = as.numeric(format(observed2$date,"%j"))
-observed2$value[observed2$variable=='root'][1]=0 #make the first root 0
+observed2$value[observed2$variable=='root'][1]=0.1 #make the first root 0.1
 
 #mean of results
 meanresult <- aggregate(predicted$value~predicted$doy+predicted$variable,data=predicted,FUN=mean,na.rm=TRUE)

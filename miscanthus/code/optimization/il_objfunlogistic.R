@@ -7,23 +7,39 @@ il_objfunlogistic <- function (parms,partial_gro_list,observed){
   predicted$root = 0
   predicted$rhizome = 0
   predicted$leaf = 0
-  for (i in 1:length(partial_gro_list)){
-    partial_gro_function = partial_gro_list[[i]]
+  obs_doys = observed$doy #get the obs' DOYs
+  
+  #hard-coded here!
+  gro_2006_2008 = partial_gro_list#[c(5:7)]
+  
+  time_ind = c(1,1273,2713,4201,5665)
+
+  for (i in 1:length(gro_2006_2008))
+  {
+    partial_gro_function = gro_2006_2008[[i]]
     current_res <- partial_gro_function(parms)
-    predicted$stem    = predicted$stem    + current_res$Stem[observed$resultindex_for_optim]
-    predicted$root    = predicted$root    + current_res$Root[observed$resultindex_for_optim]
-    predicted$rhizome = predicted$rhizome + current_res$Rhizome[observed$resultindex_for_optim]
-    predicted$leaf    = predicted$leaf    + current_res$Leaf[observed$resultindex_for_optim]
+  #  time = current_res$doy + current_res$hour/24
+  #  time_ind = which(time%in%obs_doys)
+  #  if(length(time_ind)>length(obs_doys)) {
+  #    stop(c('doy not matching!',time_ind))
+  #  } 
+    predicted$stem    = predicted$stem    + current_res$Stem[time_ind]
+    predicted$root    = predicted$root    + current_res$Root[time_ind]
+    predicted$rhizome = predicted$rhizome + current_res$Rhizome[time_ind]
+    predicted$leaf    = predicted$leaf    + current_res$Leaf[time_ind]
   }
   #3-year averages
-  predicted$stem    = predicted$stem/length(partial_gro_list)
-  predicted$root    = predicted$root/length(partial_gro_list)
-  predicted$rhizome = predicted$rhizome/length(partial_gro_list)
-  predicted$leaf    = predicted$leaf/length(partial_gro_list)
+  predicted$stem    = predicted$stem/length(gro_2006_2008)
+  predicted$root    = predicted$root/length(gro_2006_2008)
+  predicted$rhizome = predicted$rhizome/length(gro_2006_2008)
+  predicted$leaf    = predicted$leaf/length(gro_2006_2008)
   
 # First data point of root should be zero. Observation does not make difference between alive and dead roots
   observed$root[1] = 0
 
+#be careful of the variable names of the observation
+#if they don't match, the program won't stop!
+#you may see warning message like "stack imbalance". Very annoying!
   stemE    = observed$stem - predicted$stem 
   rootE    = observed$root - predicted$root 
   rhizomeE = observed$rhizome - predicted$rhizome 

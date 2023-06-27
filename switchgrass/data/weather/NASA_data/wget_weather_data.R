@@ -1,18 +1,19 @@
-setwd("/Users/yufeng/Desktop/UIUC/Research/MFEW/Deepak/MFEWS/multicrops/switchgrass/NASA_data")
-obs = read.csv('../switchgrass_observation_averaged_plantyear.csv')
-latlon=obs[,c("lat","lon")]
-latlon = latlon[!is.na(latlon$lat),]
-latlon_unique = unique(latlon)
-latlon_unique = data.frame(latlon_unique,id=1:dim(latlon_unique)[1])
-obs$siteID = NA
-for (i in 1:length(obs$siteID)){
-  if(is.na(obs$lat[i])) next
-  id=latlon_unique$id[which(latlon_unique$lat==obs$lat[i] & latlon_unique$lon==obs$lon[i])]
-  obs$siteID[i] = id
-}
-# write.csv(file = "switchgrass_aboveground_withID.csv",obs)
-write.csv(file = "unique_latlon_and_id.csv",latlon_unique,row.names = FALSE)
+#obs = read.csv('../switchgrass_observation_averaged_plantyear.csv')
+#latlon=obs[,c("lat","lon")]
+#latlon = latlon[!is.na(latlon$lat),]
+#latlon_unique = unique(latlon)
+#latlon_unique = data.frame(latlon_unique,id=1:dim(latlon_unique)[1])
+#obs$siteID = NA
+#for (i in 1:length(obs$siteID)){
+#  if(is.na(obs$lat[i])) next
+#  id=latlon_unique$id[which(latlon_unique$lat==obs$lat[i] & latlon_unique$lon==obs$lon[i])]
+#  obs$siteID[i] = id
+#}
+## write.csv(file = "switchgrass_aboveground_withID.csv",obs)
+#write.csv(file = "unique_latlon_and_id.csv",latlon_unique,row.names = FALSE)
 
+latlon_unique <- data.frame(v1=99,lat=46.77,lon=-100.92) #add a new site
+colnames(latlon_unique)=c('id','lat','lon')
 for (i in 1:dim(latlon_unique)[1]){
   lat = latlon_unique$lat[i]
   lon = latlon_unique$lon[i]

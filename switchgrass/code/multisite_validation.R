@@ -7,6 +7,9 @@ obs = read.csv('../data/biomass_observation/switchgrass_observation_averaged_pla
 latlon_id <- read.csv('../data/weather/NASA_data/unique_latlon_and_id.csv')
 
 rmse<-function(obs,pred){
+  NAs  = which(is.na(obs) | is.na(pred))
+  pred = pred[-NAs]
+  obs  = obs[-NAs]
   rmse = sqrt(sum((pred-obs)^2)/length(obs))
 }
 ttc_function<-function(temp_array){
@@ -51,19 +54,12 @@ source("../data/parameters/deriv_modules_list_with_switchgrass_senescence.R")
 source("../data/parameters/parameters_list_switchgrass_senescence.R")
 
 parameters_list_switchgrass$TTc_leafsenescence_threshold = 5
-# parameters_list_switchgrass$TTemr = 300
-parameters_list_switchgrass$iSp   = 1.7
-
-# parameters_list_switchgrass$tbase      = 10
-# parameters_list_switchgrass$topt_upper = 31
-# parameters_list_switchgrass$tmax       = 40
+parameters_list_switchgrass$iSp   = 1.1
 
 parameters_to_optimize <- c("alphaStem","betaStem","alphaLeaf","betaLeaf", "alphaRoot", "betaRoot",
                             "kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate","TTemr")
-# x=c(5.809053,   -2.428205,   10.897149,  -19.003032,    1.494914,   -9.901821,
-    # -0.004324,    0.621079,    0.052520,    0.000793)
-x=c(10.019875,   -5.734288,    5.418285,   -0.490853,   14.444107,  -17.618838,
-    -0.001025,    0.143396,    0.615253,    0.000096,  253.538347)
+x=c( 12.172727,   -8.076308,   14.594526,  -12.076529,    9.122148,  -13.958066,
+     -0.003602,    0.019288,    0.015474,    0.000361,  100.848453)
 
 parameters_list_switchgrass[parameters_to_optimize] = x
 
@@ -97,6 +93,7 @@ post_season_loss_per_day = 0.0213 #t/ha/day
 #https://www.sciencedirect.com/science/article/pii/S0961953409000166
 # 
 predicted = c()
+avg_temp  = c()
 post_season_loss = c(1:dim(obs)[1])*NA
 ttc_scaling_factor_all=c()
 for (i in 1:dim(obs)[1]){
@@ -122,10 +119,12 @@ for (i in 1:dim(obs)[1]){
   biocroinput <- read.csv(paste0('../data/weather/NASA_data/BioCroInputs/site_',site.id,'_lowerTransmittance.csv')) 
   
   if(harvest_month<6){
-    year_j = harvest_year -1
-  }else{year_j = harvest_year}
+    harvest_year_actual = harvest_year -1
+  }else{
+    harvest_year_actual = harvest_year
+  }
   
-  for (year_j in plant_year:harvest_year){
+  for (year_j in plant_year:harvest_year_actual){
     weather_data = biocroinput[which(biocroinput$year==year_j),]
     growing_season <- get_growing_season_climate(weather_data, threshold_temperature = 0)
 
@@ -141,9 +140,9 @@ for (i in 1:dim(obs)[1]){
     
     total_ttc = ttc_function(growing_season$temp)
     ttc_scaling_factor = total_ttc / TTc_urbana$total_TTC[TTc_urbana$year==year_j]
-    # parameters_list_switchgrass$TTemr = parameters_list_switchgrass0$TTemr * ttc_scaling_factor
-    # parameters_list_switchgrass$TTveg = parameters_list_switchgrass0$TTveg * ttc_scaling_factor
-    # parameters_list_switchgrass$TTrep = parameters_list_switchgrass0$TTrep * ttc_scaling_factor
+    parameters_list_switchgrass$TTemr = parameters_list_switchgrass0$TTemr * ttc_scaling_factor
+    parameters_list_switchgrass$TTveg = parameters_list_switchgrass0$TTveg * ttc_scaling_factor
+    parameters_list_switchgrass$TTrep = parameters_list_switchgrass0$TTrep * ttc_scaling_factor
     ttc_scaling_factor_all = c(ttc_scaling_factor_all,ttc_scaling_factor)
     
     result <- Gro_solver(initial_state =  initial_state_switchgrass,
@@ -157,6 +156,8 @@ for (i in 1:dim(obs)[1]){
     # initial_state_switchgrass$Root    = result$Root[n]*(1-root_loss)
     # stop()
   }
+  #save mean temp
+  avg_temp[i] = mean(growing_season$temp)
   #save the aboveground biomass for each location
   aboveground = result$Stem+result$Leaf
   predicted[i]  = tail(aboveground,1)
@@ -165,10 +166,9 @@ for (i in 1:dim(obs)[1]){
     post_season_loss[i] = post_season_loss_per_day*(as.numeric(harvest_date - season_last_day))
     predicted[i] = predicted[i] - post_season_loss[i]
   }
-  # predicted[i] = predicted[i]*0.67
 }
 
-obs_and_model = cbind(obs,predicted)
+obs_and_model = cbind(obs,predicted,avg_temp)
 obs_and_model = as.data.frame(obs_and_model)
 colnames(obs_and_model)[colnames(obs_and_model) =="MEAN"] = "observed"
 colnames(obs_and_model)[colnames(obs_and_model) =="use_or_not"] = "treatment"
@@ -177,20 +177,16 @@ obs_and_model$cultivars=ifelse(obs_and_model$iscaveinrock==1,"cave-in-rock","oth
 
 obs_and_model_plot = obs_and_model
 #[obs_and_model$treatment==1,]
-#obs_and_model_plot = obs_and_model_plot[!is.na(obs_and_model_plot$predicted) & !is.na(obs_and_model_plot$observed),]
-#cc=cor(obs_and_model_plot$observed,obs_and_model_plot$predicted)
+obs_and_model_plot = obs_and_model_plot[!is.na(obs_and_model_plot$predicted) & !is.na(obs_and_model_plot$observed),]
+cc=cor(obs_and_model_plot$observed,obs_and_model_plot$predicted)
 
+obs_and_model$cultivars=ifelse(obs_and_model$iscaveinrock==1,"cave-in-rock","others")
 #write.csv(obs_and_model,'obs_and_model.csv')
-##average by locations [lat, lon]
-# obs_and_model = aggregate(obs_and_model,
-#                           by=list(obs_and_model$lat,obs_and_model$lon),
-#                           FUN=mean)
-# obs_and_model$cultivars=ifelse(obs_and_model$iscaveinrock==1,"cave-in-rock","others")
+
 # #
 # remove young stands
 # ages = obs_and_model$harvest_year - obs_and_model$plantyear +1
 # obs_and_model = obs_and_model[ages>3,]
-
 
 correction_term=1
 plot1 <- 
@@ -205,9 +201,34 @@ plot1 <-
   theme(text = element_text(size = 16)) 
 print(plot1)
 
+# #average by locations [lat, lon]
+# unique_latlon = unique(obs_and_model[,c('lat','lon')])
+# matrix_plot = data.frame(id = 1:nrow(unique_latlon),lat=NA,lon=NA,observed=NA,predicted=NA,SE=NA)
+# for (i in 1:nrow(unique_latlon)){
+#   lat_i = unique_latlon$lat[i]
+#   lon_i = unique_latlon$lon[i]
+#   matrix_plot$lat[i]=lat_i
+#   matrix_plot$lon[i]=lon_i
+#   obs_and_model_sub = obs_and_model[obs_and_model$lat==lat_i & obs_and_model$lon==lon_i,]
+#   matrix_plot$observed[i]  = mean(obs_and_model_sub$observed,na.rm=TRUE)
+#   matrix_plot$predicted[i] = mean(obs_and_model_sub$predicted,na.rm=TRUE)
+#   matrix_plot$SE[i] = mean(obs_and_model_sub$SE,na.rm=TRUE)
+# }
+# 
+# plot2 <- 
+#   ggplot(matrix_plot, aes(x=observed,y=predicted*correction_term))+
+#   geom_point()+#colour = "red") + 
+#   geom_errorbarh(aes(xmin=observed-SE, xmax=observed+SE), height=.2,position=position_dodge(.9)) +
+#   # ggtitle('All')+
+#   ylab('predicted biomass (Mg/ha)')+
+#   xlab('observed biomass (Mg/ha)')+
+#   ylim(c(5,20)) + xlim(c(5,20))+
+#   geom_abline(intercept = 0 , slope = 1)+
+#   theme(text = element_text(size = 16)) 
+# print(plot2)
+# cc=cor(matrix_plot$observed,matrix_plot$predicted,use="na.or.complete")
+
+
 c(mean(obs_and_model_plot$predicted),sd(obs_and_model_plot$predicted))
-
-
-
 mean_rmse = rmse(obs_and_model_plot$observed,obs_and_model_plot$predicted) # 
 mean_ccc =  epi.ccc(obs_and_model_plot$observed,obs_and_model_plot$predicted)$rho.c$est  #

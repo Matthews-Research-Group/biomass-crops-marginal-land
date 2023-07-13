@@ -27,35 +27,19 @@ source("../data/parameters/parameters_list_switchgrass_senescence.R")
 
 if(TRUE){
 parameters_list_switchgrass$TTc_leafsenescence_threshold = 5
-parameters_list_switchgrass$iSp = 1.7
+parameters_list_switchgrass$iSp = 1.1
 parameters_list_switchgrass$soil_type_indicator = 4
-parameters_list_switchgrass$TTemr = 300
 
 # parameters_list_switchgrass$tbase      = 10
 # parameters_list_switchgrass$topt_upper = 31
 # parameters_list_switchgrass$tmax       = 40
+# parameters_list_switchgrass$upperT       = 28
 
 parameters_to_optimize <- c("alphaStem","betaStem","alphaLeaf","betaLeaf", "alphaRoot", "betaRoot",
                             "kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate","TTemr")
 
-# parameters_to_optimize <- c("kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate")
-# x=c(-0.001814,    0.010002,   0.437179,    0.000734,  229.688196)
-# x=c(-0.001420,    0.010000,    0.457963,    0.001000,  340.778342)
-# x=c(-0.001069,    0.014352,    0.500000,    0.001000)
-# # x=c(-0.331244,    2.367446,  -13.035984,   15.772289,   -2.895444,    2.200170,
-# #     -0.002154,    0.079547,    0.452053,    0.000638)
-# x=c(-1.281562,   10.699982,  -10.144695,   19.310777,    3.481228,  -17.720790,
-#     -0.002799,    0.446588,    0.447518,    0.002000,  101.333145)
-x=c(16.647549,  -10.105077,    5.297615,   -0.127140,   18.549425,  -18.399911,
-    -0.002501,    0.477766,    0.413641,    0.001222,  102.778072)
-x=c(8.320112,   -0.224664,   18.141234,  -19.899703,    0.018136,
-    -19.855960,   -0.008884,    0.101156,    0.239154,    0.000887, 105.543117)
-x=c(5.809053,   -2.428205,   10.897149,  -19.003032,    1.494914,   -9.901821,
-    -0.004324,    0.621079,    0.052520,    0.000793)
-x=c(10.019875,   -5.734288,    5.418285,   -0.490853,   14.444107,  -17.618838,
-    -0.001025,    0.143396,    0.615253,    0.000096,  253.538347)
-# parameters_to_optimize <- c("kRhizome_emr","kLeaf_emr","kStem_emr","leaf_turnover_rate","TTemr")
-# x=c( -0.001795,    0.714143,    0.152252,    0.000000,  748.425000)
+x=c( 12.172727,   -8.076308,   14.594526,  -12.076529,    9.122148,  -13.958066,
+     -0.003602,    0.019288,    0.015474,    0.000361,  100.848453)
 
 parameters_list_switchgrass[parameters_to_optimize] = x
 
@@ -71,8 +55,6 @@ initial_state_switchgrass$Root    = 0.1
 # ss_modules <- ss_modules[c(-which(ss_module_list=="stomata_water_stress_linear"),
 #                            -which(ss_module_list=="leaf_water_stress_exponential"))]
 # ss_modules_list_swithcgrass = ss_modules
-
-parameters_list_switchgrass$iSp   = 1.7
 }
 
 if(run_cwrfsoilwater){
@@ -87,7 +69,7 @@ weather_urbana = read.csv('../data/weather/NASA_data/BioCroInputs/site_1_lowerTr
 # rhizome_loss = 0.1
 # root_loss =  0.3
 
-years     = 2006:2008
+years = 2006:2008
 result_list=list()
 for (i in 1:length(years)){
   ind = which(weather_urbana$year==years[i])
@@ -151,6 +133,4 @@ switchgrassplot <- switchgrassplot +
   geom_point(aes(x=doy,y=value, color=variable), data = observed2)
 switchgrassplot <- switchgrassplot + xlab("Day of Year") + ylab ("dry biomass (Mg/ha)")
 plot(switchgrassplot)
-
-
 

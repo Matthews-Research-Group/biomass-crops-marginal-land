@@ -8,6 +8,9 @@ library(epiR)
 # library(sf)
 # library(raster)
 library(ggmap)
+
+run_cwrfsoilwater=TRUE
+
 ttc_function<-function(temp_array){
   tbase = 10
   topt_lower = 28
@@ -58,19 +61,12 @@ load("../data//parameters/miscanthus_giganteus_deriv_logistic_modules.rdata")
 # # ss_modules <- ss_modules[c(-which(ss_module_list=="leaf_water_stress_exponential"))]
 # miscanthus_giganteus_ss_logistic_modules = ss_modules
 
-# miscanthus_giganteus_logistic_parameters$kd = 0.1         #An Introduction to Environmental Biophysics
 miscanthus_giganteus_logistic_parameters$alpha1 = 0.045    #https://academic.oup.com/jxb/article/68/2/335/2932218#88082389
 miscanthus_giganteus_logistic_parameters$TTemr  = 400
 parameters_to_optimize <- c("kRhizome_emr","kLeaf_emr","kStem_emr","alphaStem",
                             "betaStem","alphaLeaf","betaLeaf","alphaRoot", "betaRoot")
-x= c(-0.000351,    0.295862,    0.614672,
-     25.991699,  -34.721051,    8.931936,  -33.450919,   22.825293,  -33.522782)
-x=c( -0.000713,    0.356245,    0.527424,
-     2.011326,   -1.853476,    1.707554,  -36.206911,   0.812189,  -36.014915)
-x=c(-0.000555,   0.211191,    0.671859,
-    1.011031,   -0.228122,    0.081572,  -38.765151,    0.160947,  -39.855814)
-# x=c(-0.000391,    0.271790,    0.613549,
-#     25.347711,  -34.880934,   10.792098,  -37.781153,    1.615596,   -3.709161)
+x=c(-0.000362,    0.269631,    0.609721,
+    29.939436,  -39.155449,    0.199284,  -36.468715,    2.891147,   -5.831675)
 miscanthus_giganteus_logistic_parameters[parameters_to_optimize] = x
 
 multisite <- read.csv("../data/biomass_observation/Miscanthus_Observation_20230529.csv")
@@ -112,6 +108,12 @@ miscanthus_giganteus_logistic_parameters0 = miscanthus_giganteus_logistic_parame
 unique_IDs = unique(multisite$LocationID)
 ttc_scaling_factor_all=c()
 
+if(run_cwrfsoilwater){
+  miscanthus_giganteus_deriv_logistic_modules = miscanthus_giganteus_deriv_logistic_modules[-3] #remove two_layer_soil_profile
+  miscanthus_giganteus_initial_state =
+    miscanthus_giganteus_initial_state[names(miscanthus_giganteus_initial_state)!=c('soil_water_content')]
+}
+
 rhizome_winter_loss = 0.34# 34% rhizome dies during winter
 
 #create a column for predicted stem (with winter loss)
@@ -148,12 +150,23 @@ for (i in 1:length(unique_IDs)){
       weather <- weather_all[weather_all$year==year_current,]
       growing_season_weather <- get_growing_season_climate(weather, threshold_temperature = 0)
       
+      #read in CWRF soil water for the initial soil water content and soil type
+      soil_data = 
+        read.csv(paste0("../data/weather_data_NASA_POWER/cwrf_soil_data_1m/site_",unique_ID,"/cwrf_soilwater_",year_current,".csv"))
+      miscanthus_giganteus_logistic_parameters$soil_type_indicator = soil_data$soiltype[1]
+      
+      if(run_cwrfsoilwater){
+        growing_season_weather$soil_water_content = soil_data$swc[soil_data$doy>=growing_season_weather$doy[1] 
+                                                          & soil_data$doy<=tail(growing_season_weather$doy,1)]
+        # growing_season_weather$soil_water_content = growing_season_weather$soil_water_content +0.2
+      }
+      
       total_ttc = ttc_function(growing_season_weather$temp)
       ttc_scaling_factor = total_ttc / TTc_urbana$total_TTC[TTc_urbana$year==year_current]
-      # miscanthus_giganteus_logistic_parameters$TTemr = miscanthus_giganteus_logistic_parameters0$TTemr * ttc_scaling_factor
-      # miscanthus_giganteus_logistic_parameters$TTveg = miscanthus_giganteus_logistic_parameters0$TTveg * ttc_scaling_factor
-      # miscanthus_giganteus_logistic_parameters$TTrep = miscanthus_giganteus_logistic_parameters0$TTrep * ttc_scaling_factor
-      # ttc_scaling_factor_all = c(ttc_scaling_factor_all,ttc_scaling_factor)
+      miscanthus_giganteus_logistic_parameters$TTemr = miscanthus_giganteus_logistic_parameters0$TTemr * ttc_scaling_factor
+      miscanthus_giganteus_logistic_parameters$TTveg = miscanthus_giganteus_logistic_parameters0$TTveg * ttc_scaling_factor
+      miscanthus_giganteus_logistic_parameters$TTrep = miscanthus_giganteus_logistic_parameters0$TTrep * ttc_scaling_factor
+      ttc_scaling_factor_all = c(ttc_scaling_factor_all,ttc_scaling_factor)
       
       miscanthus_giganteus_initial_state$Rhizome = initialRhizome
       
@@ -170,18 +183,26 @@ for (i in 1:length(unique_IDs)){
                            derivative_module_names = miscanthus_giganteus_deriv_logistic_modules, verbose = FALSE)
       
       initialRhizome = result$Rhizome[dim(result)[1]]*(1-rhizome_winter_loss)
+      print(paste("year=", year_current))
       print(paste("age=", age, "ttc_scaling_factor=",ttc_scaling_factor,"initialRhizome=",initialRhizome))
       print(paste("mean temp=", mean(growing_season_weather$temp)))
       print(paste("mean solar=", mean(growing_season_weather$solar)))
+      print(paste("mean stomaWS=", mean(result$StomataWS)))
+      print(paste("mean swc=", mean(growing_season_weather$soil_water_content)))
       #calculate winter loss of stem biomass
       #this is only valid when the loop age is matching an actual measured age
       if(age %in% stand_age){
-        #We currently do NOT use the 33% winter loss
-        # if(age<=3){ 
-        #   #for young stands, we apply a constant loss of 33%
-        #   biomass_site_i[age] = result$Stem[dim(result)[1]] * 0.67
-        # }else{
-        # #for older stands, we apply a loss of 0.07 t/ha per day
+        
+        #derive from Fig. 10 Midwest https://onlinelibrary.wiley.com/doi/full/10.1111/gcbb.12929
+        #it makes no difference here since the oldest stand is just 7-year old
+        #will use this in the multi-site validation script
+          aging_loss = -0.7101*max(7,age) + 4.8145 #at least age 7. Negative values
+        
+        if(age<=3){
+          #for young stands, we apply a constant loss of 33%
+          biomass_site_i[age] = result$Stem[dim(result)[1]] * 0.67
+        }else{
+        #for older stands, we apply a loss of 0.07 t/ha per day
           if(is.na(site_i$measure_month_n[count_index])){ #if no measure month, assume the March 1st (DOY=60)
             site_i$predicted_stem_actual[count_index] = result$Stem[dim(result)[1]] - 0.07*(60+365-tail(growing_season_weather$doy,1))
           }else{
@@ -202,12 +223,13 @@ for (i in 1:length(unique_IDs)){
             site_i$predicted_stem_actual[count_index]  = site_i$predicted_stem_actual[count_index]
             #* site_i$correction_factor[count_index]
           }
-          biomass_site_i[age] = site_i$predicted_stem_actual[count_index]
-        # }
+          biomass_site_i[age] = site_i$predicted_stem_actual[count_index] + aging_loss
+        }
         count_index = count_index+1
       }else{
         biomass_site_i[age] = NaN
       }
+      # if(age==2) stop()
       print(biomass_site_i[age])
     }
     #bind the biomass back to the full multisite matrix for plotting later
@@ -247,13 +269,14 @@ slope_parameters  = lm(predicted~observed+0) #
 meandataset = data.frame(obs=observed, pred = predicted, SE=obs_se, location=uniqueID)
 actual_stem_comparison <- ggplot(data =  meandataset,aes(x = obs ,  y = pred))+ 
   geom_point() +
-  # stat_smooth(method="lm",formula=y~0+x, level = 0.9) +
+  stat_smooth(method="lm",formula=y~0+x, level = 0.9) +
   geom_errorbarh(aes(xmin=obs-SE, xmax=obs+SE), height=.2,position=position_dodge(.9)) +
   xlab ("Observed Yield (Mg/ha)") + ylab("Predicted Yield (Mg/ha)") +
-  ylim(0,35) + xlim(0,35)  +
-  geom_abline() 
-#  geom_text(x=28 , y = 22 , label = "1:1 line" ) + 
-  # geom_text(x=10 , y = 30 , label = paste0("Predicted = ",round(slope_parameters$coefficients,2)," × Observed"), color="blue")
+  ylim(0,40) + xlim(0,40)  +
+  geom_abline() +
+  geom_text(aes(label=location),hjust=0,vjust=0)+
+  geom_text(x=28 , y = 22 , label = "1:1 line" ) + 
+  geom_text(x=10 , y = 30 , label = paste0("Predicted = ",round(slope_parameters$coefficients,2)," × Observed"), color="blue")
 
 # write.csv(meandataset, file="./multisite_validation_data_FigS3b.csv")
 plot(actual_stem_comparison)

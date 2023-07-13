@@ -1,7 +1,7 @@
 library(BioCroMis)
 #Yufeng He: Dec 12, 2022
 
-run_cwrfsoilwater=TRUE
+run_cwrfsoilwater=FALSE
 # parameters and weather inputs
 
 load("../data//parameters/miscanthus_giganteus_initial_state.rdata")
@@ -27,15 +27,14 @@ parameters_to_optimize <- c("kRhizome_emr","kLeaf_emr","kStem_emr",
 # miscanthus_giganteus_ss_logistic_modules = ss_modules
 ## 
 
-#these values are from the optimization results on BioCluster
-# x= c(-0.000351,    0.295862,    0.614672,
-#      25.991699,  -34.721051,    8.931936,  -33.450919,   22.825293,  -33.522782)
-x=c( -0.000713,    0.356245,    0.527424,
-     2.011326,   -1.853476,    1.707554,  -36.206911,   0.812189,  -36.014915)
-x=c(-0.000555,   0.211191,    0.671859,
-    1.011031,   -0.228122,    0.081572,  -38.765151,    0.160947,  -39.855814)
-# x=c(-0.000391,    0.271790,    0.613549,
-#     25.347711,  -34.880934,   10.792098,  -37.781153,    1.615596,   -3.709161)
+# #these values are from the optimization results on BioCluster
+# x=c(-0.000555,   0.211191,    0.671859,
+#     1.011031,   -0.228122,    0.081572,  -38.765151,    0.160947,  -39.855814)
+
+#this one is for turning OFF cwrf soil water
+x=c(-0.000362,    0.269631,    0.609721,
+    29.939436,  -39.155449,    0.199284,  -36.468715,    2.891147,   -5.831675)
+
 miscanthus_giganteus_logistic_parameters[parameters_to_optimize] = x
 
 if(run_cwrfsoilwater){
@@ -45,6 +44,9 @@ if(run_cwrfsoilwater){
 }
 
 miscanthus_giganteus_initial_state$Rhizome = 24.1
+
+solver=list(type='Gro_euler', output_step_size=1.0, adaptive_rel_error_tol=1e-4, 
+            adaptive_abs_error_tole=1e-4, adaptive_max_steps=200)
 
 weather_all<-read.csv(
   "../data/weather_data_NASA_POWER/BioCro_input_NASA/site_2_2002_2018_LowerTransmittance.csv")
@@ -56,12 +58,11 @@ for (i in 1:length(years)){
   growing_season_weather =  growing_season_weather[growing_season_weather$doy>=106 &
                                                     growing_season_weather$doy<=350,]
   
-  #read in CWRF soil water for the initial soil water content and soil type
-  soil_data = 
-    read.csv(paste0("../data/weather_data_NASA_POWER//cwrf_soil_data//site_",2,"/cwrf_soilwater_",year_i,".csv"))
-  miscanthus_giganteus_logistic_parameters$soil_type_indicator = soil_data$soiltype[1]
-  
   if(run_cwrfsoilwater){
+    #read in CWRF soil water for the initial soil water content and soil type
+    soil_data = 
+      read.csv(paste0("../data/weather_data_NASA_POWER//cwrf_soil_data//site_",2,"/cwrf_soilwater_",year_i,".csv"))
+    miscanthus_giganteus_logistic_parameters$soil_type_indicator = soil_data$soiltype[1]
     growing_season_weather$soil_water_content = soil_data$swc[soil_data$doy>=growing_season_weather$doy[1] 
                                                               & soil_data$doy<=tail(growing_season_weather$doy,1)]
   }
@@ -71,7 +72,7 @@ for (i in 1:length(years)){
                        parameters = miscanthus_giganteus_logistic_parameters,
                        varying_parameters = growing_season_weather,
                        steady_state_module_names = miscanthus_giganteus_ss_logistic_modules,
-                       derivative_module_names = miscanthus_giganteus_deriv_logistic_modules, verbose = FALSE)
+                       derivative_module_names = miscanthus_giganteus_deriv_logistic_modules, solver=solver,verbose = FALSE)
   
   
   ##########################################################################################
@@ -94,7 +95,7 @@ predicted = predicted/length(years)
 predicted = reshape2::melt(predicted,id.vars = c("doy"),measure.vars = c("Leaf","Stem","Root","Rhizome"))
 
 observed_biomass <- read.csv("../data/biomass_observation/il_observation_without_index.csv")
-observed_biomass$Stem[5] = 35
+
 names(observed_biomass)  = c("doy", "Rhizome",     "Leaf"     ,"Stem", "Root")
 observed_biomass$Root[1] = 0 # First data point of root should be zero. Observation does not make difference between alive and dead roots
 #observed <- observed_biomass[1:4, c("doy","Stem","Leaf","Rhizome","Root","lai")]

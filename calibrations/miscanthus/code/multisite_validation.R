@@ -72,25 +72,6 @@ miscanthus_giganteus_logistic_parameters[parameters_to_optimize] = x
 multisite <- read.csv("../data/biomass_observation/Miscanthus_Observation_20230529.csv")
 multisite <- multisite[!is.na(multisite$biomass),] #remove NA observed biomass
 
-# latlon=multisite[,c('lat','lon')]
-# latlon=unique(latlon)
-# # us <- readRDS('/Users/yufeng/Desktop/model_coupling_UMD/BioCro/Ob data/GADM_2.8_USA_adm1.rds')
-# register_google("AIzaSyBRFL6mFkIl7EFNMBQdpiWKZfjjz-Ncdgg")
-# CONUS_map <- get_map(location = c(lon = -96.5795, lat = 39.8283), # center map on CONUS
-#                      color = "bw",
-#                      source = "google",
-#                      maptype = "terrain",
-#                      # maptype = "toner-background",
-#                      zoom = 4) # set the zoom to include all data
-# ggmap(CONUS_map,
-#       extent = "device",
-#       xlab = "Longitude",
-#       ylab = "Latitude") +
-#   # Add core lat/long coordinates as points, colored by fraction organic matter
-#   geom_point(data = latlon, aes_string(x = 'lon', y = 'lat'), color='blue',size = 1) +
-#   xlab("Longitude") + # Change x axis title
-#   ylab("Latitude") # Change y axis title
-
 Num_obs <- dim(multisite)[1]
 
 multisite$predicted_stem_actual  = numeric(Num_obs)

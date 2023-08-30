@@ -1,0 +1,11 @@
+#!/bin/bash
+
+#SBATCH --job-name=PartiOptim
+#SBATCH --time=24:00:00
+#SBATCH -p normal 
+#SBATCH -N 1
+#SBATCH -n 12 
+#SBATCH --mail-type=END
+#SBATCH --mail-user=yufenghe@illinois.edu
+
+Rscript run_DEoptim.R 

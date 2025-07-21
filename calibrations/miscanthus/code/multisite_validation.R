@@ -133,7 +133,7 @@ for (i in 1:length(unique_IDs)){
       
       #read in CWRF soil water for the initial soil water content and soil type
       soil_data = 
-        read.csv(paste0("../data/weather_data_NASA_POWER/cwrf_soil_data_1m/site_",unique_ID,"/cwrf_soilwater_",year_current,".csv"))
+        read.csv(paste0("../data/cwrf_soil_data_1m/site_",unique_ID,"/cwrf_soilwater_",year_current,".csv"))
       miscanthus_giganteus_logistic_parameters$soil_type_indicator = soil_data$soiltype[1]
       
       if(run_cwrfsoilwater){
